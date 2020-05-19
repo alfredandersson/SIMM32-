@@ -1,0 +1,65 @@
+﻿* Encoding: UTF-8.
+
+DATASET ACTIVATE DataSet2.
+RECODE Age (0 thru 15=0) (16 thru 49=1) (50 thru 80=2) INTO age_categorical.
+EXECUTE.
+
+SPSSINC CREATE DUMMIES VARIABLE=age_categorical 
+ROOTNAME1=age 
+/OPTIONS ORDER=A USEVALUELABELS=YES USEML=YES OMITFIRST=NO.
+
+SPSSINC CREATE DUMMIES VARIABLE=Pclass 
+ROOTNAME1=Class 
+/OPTIONS ORDER=A USEVALUELABELS=YES USEML=YES OMITFIRST=NO.
+
+RECODE SibSp (0=0) (1=1) (2=2) (3 thru 10=3) (ELSE=SYSMIS) INTO SibSp_categorical.
+EXECUTE.
+
+SPSSINC CREATE DUMMIES VARIABLE=SibSp_categorical 
+ROOTNAME1=SibSp 
+/OPTIONS ORDER=A USEVALUELABELS=YES USEML=YES OMITFIRST=NO.
+
+RECODE Parch (0=0) (1=1) (2=2) (3 thru 10=3) (ELSE=SYSMIS) INTO Parch_categorical.
+EXECUTE.
+
+SPSSINC CREATE DUMMIES VARIABLE=Parch_categorical 
+ROOTNAME1=Parch 
+/OPTIONS ORDER=A USEVALUELABELS=YES USEML=YES OMITFIRST=NO.
+
+* For the Cabin variable, empty cases were manually filled with 0 before recoding
+
+RECODE Cabin ('0'=0) (ELSE=1) INTO Cabin_yes.
+EXECUTE.
+
+RECODE Embarked ('S'=0) ('Q'=1) ('C'=2) (ELSE=SYSMIS) INTO Embarked_categorical.
+EXECUTE.
+
+SPSSINC CREATE DUMMIES VARIABLE=Embarked_categorical 
+ROOTNAME1=Embarked 
+/OPTIONS ORDER=A USEVALUELABELS=YES USEML=YES OMITFIRST=NO.
+
+RECODE Sex ('female'=1) ('male'=0) (ELSE=SYSMIS) INTO Gender.
+EXECUTE.
+
+CORRELATIONS
+  /VARIABLES=Gender age_1 age_2 age_3 Class_1 Class_2 Class_3 SibSp_1 SibSp_2 SibSp_3 SibSp_4 
+    Parch_1 Parch_2 Parch_3 Parch_4 Fare Cabin_yes Embarked_1 Embarked_2 Embarked_3
+  /PRINT=TWOTAIL SIG
+  /MISSING=PAIRWISE.
+
+LOGISTIC REGRESSION VARIABLES Survived
+  /METHOD=ENTER Gender age_1 age_2 Class_1 Class_2 SibSp_2 SibSp_3 SibSp_4 Parch_2 Parch_3 Parch_4 
+    Fare Cabin_yes Embarked_2 Embarked_3 
+  /SAVE=COOK
+  /CRITERIA=PIN(.05) POUT(.10) ITERATE(20) CUT(.5).
+
+NOMREG Survived (BASE=FIRST ORDER=ASCENDING) WITH Gender age_1 age_2 Class_1 Class_2 SibSp_2 
+    SibSp_3 SibSp_4 Parch_2 Parch_3 Parch_4 Fare Cabin_yes Embarked_2 Embarked_3
+  /CRITERIA CIN(95) DELTA(0) MXITER(100) MXSTEP(5) CHKSEP(20) LCONVERGE(0) PCONVERGE(0.000001) 
+    SINGULAR(0.00000001) 
+  /MODEL
+  /STEPWISE=PIN(.05) POUT(0.1) MINEFFECT(0) RULE(SINGLE) ENTRYMETHOD(LR) REMOVALMETHOD(LR)
+  /INTERCEPT=INCLUDE
+  /PRINT=FIT PARAMETER SUMMARY LRT CPS STEP MFI IC.
+
+
